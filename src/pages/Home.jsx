@@ -249,7 +249,7 @@ export default function Home() {
           </div>
         )}
       </div>
-      
+
       
        <style jsx>{`
         .home-container {
@@ -445,6 +445,25 @@ export default function Home() {
           background: #ecf0f1;
           padding: 0.25rem 0.75rem;
           border-radius: 20px;
+        }
+
+        .view-all-button {
+          margin: 1.5rem auto;
+          display: block;
+          padding: 0.8rem 2rem;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          border: none;
+          border-radius: 50px;
+          font-size: 1rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+
+        .view-all-button:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
         }
 
         .movies-grid {
