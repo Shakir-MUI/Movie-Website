@@ -1,19 +1,29 @@
-
 import React, { useState, useEffect } from "react";
 import MovieCard from "../components/MovieCard";
 import { auth } from "../firebase/firebase";
 
-const API_KEY = "a92f198";
+const TMDB_API_KEY = "4f747ea5f352272eb2979809dccffde6";
+const TMDB_BASE_URL = "https://api.themoviedb.org/3";
+const TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500";
 
 const categories = [
-  { title: "Action Movies", query: "action", icon: "💥", gradient: "linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)" },
-  { title: "Comedy Movies", query: "comedy", icon: "😂", gradient: "linear-gradient(135deg, #feca57 0%, #ff9ff3 100%)" },
-  { title: "Adventure Movies", query: "adventure", icon: "🗺️", gradient: "linear-gradient(135deg, #48cae4 0%, #023e8a 100%)" },
-  { title: "Movies for Kids", query: "kids", icon: "🎈", gradient: "linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)" },
-  { title: "Thriller Movies", query: "thriller", icon: "🎯", gradient: "linear-gradient(135deg, #2d1b69 0%, #11998e 100%)" },
-  { title: "Drama Movies", query: "drama", icon: "🎭", gradient: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" },
-  { title: "Sci-Fi Movies", query: "sci-fi", icon: "🚀", gradient: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" },
+  { title: "Action Movies", query: "28", icon: "💥", gradient: "linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)" },
+  { title: "Comedy Movies", query: "35", icon: "😂", gradient: "linear-gradient(135deg, #feca57 0%, #ff9ff3 100%)" },
+  { title: "Adventure Movies", query: "12", icon: "🗺️", gradient: "linear-gradient(135deg, #48cae4 0%, #023e8a 100%)" },
+  { title: "Movies for Kids", query: "16", icon: "🎈", gradient: "linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)" },
+  { title: "Thriller Movies", query: "53", icon: "🎯", gradient: "linear-gradient(135deg, #2d1b69 0%, #11998e 100%)" },
+  { title: "Drama Movies", query: "18", icon: "🎭", gradient: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" },
+  { title: "Sci-Fi Movies", query: "878", icon: "🚀", gradient: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" },
 ];
+
+// Convert TMDB movie format to match OMDB format for compatibility
+const convertTMDBtoOMDB = (tmdbMovie) => ({
+  imdbID: tmdbMovie.id.toString(),
+  Title: tmdbMovie.title || tmdbMovie.name,
+  Year: tmdbMovie.release_date ? tmdbMovie.release_date.split('-')[0] : (tmdbMovie.first_air_date ? tmdbMovie.first_air_date.split('-')[0] : 'N/A'),
+  Poster: tmdbMovie.poster_path ? `${TMDB_IMAGE_BASE_URL}${tmdbMovie.poster_path}` : "N/A",
+  Type: tmdbMovie.media_type || "movie"
+});
 
 export default function Home() {
   const [query, setQuery] = useState("");
@@ -36,11 +46,14 @@ export default function Home() {
 
     setSearchLoading(true);
     try {
-      const url = `https://www.omdbapi.com/?s=${query}&apikey=${API_KEY}`;
+      const url = `${TMDB_BASE_URL}/search/multi?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&include_adult=false`;
       const res = await fetch(url);
       const data = await res.json();
-      if (data.Search) {
-        setSearchResults(data.Search);
+      if (data.results && data.results.length > 0) {
+        const movies = data.results
+          .filter(item => item.media_type === 'movie' || item.media_type === 'tv')
+          .map(convertTMDBtoOMDB);
+        setSearchResults(movies);
       } else {
         setSearchResults([]);
       }
@@ -57,10 +70,11 @@ export default function Home() {
       setLoading(true);
       try {
         const promises = categories.map(async (cat) => {
-          const url = `https://www.omdbapi.com/?s=${cat.query}&apikey=${API_KEY}`;
+          const url = `${TMDB_BASE_URL}/discover/movie?api_key=${TMDB_API_KEY}&with_genres=${cat.query}&sort_by=popularity.desc&include_adult=false`;
           const res = await fetch(url);
           const data = await res.json();
-          return { category: cat.title, movies: data.Search || [] };
+          const movies = data.results ? data.results.map(convertTMDBtoOMDB) : [];
+          return { category: cat.title, movies };
         });
 
         const results = await Promise.all(promises);
@@ -349,6 +363,20 @@ export default function Home() {
 
         .search-input::placeholder {
           color: rgba(255, 255, 255, 0.7);
+        }
+
+        .clear-button {
+          background: none;
+          border: none;
+          color: rgba(255, 255, 255, 0.7);
+          cursor: pointer;
+          padding: 0.5rem;
+          margin: 0 0.5rem;
+          transition: all 0.3s ease;
+        }
+
+        .clear-button:hover {
+          color: white;
         }
 
         .search-button {
@@ -711,7 +739,30 @@ export default function Home() {
 
            .content-container {
              padding: 0 1rem;
-           }           .movies-grid              grid-template-columns: repeat(auto-fill, minmax(200px, 1fr))             gap: 1rem           }           .category-header              padding: 1.5rem             flex-direction: column             text-align: center             gap: 0.5rem           }           .category-title              font-size: 1.4rem           }           .horizontal-scroll              padding: 1rem           }           .movie-item              flex: 0 0 200px;
+           }
+
+           .movies-grid {
+             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+             gap: 1rem;
+           }
+
+           .category-header {
+             padding: 1.5rem;
+             flex-direction: column;
+             text-align: center;
+             gap: 0.5rem;
+           }
+
+           .category-title {
+             font-size: 1.4rem;
+           }
+
+           .horizontal-scroll {
+             padding: 1rem;
+           }
+
+           .movie-item {
+             flex: 0 0 200px;
            }
 
            .movies-row {
@@ -748,11 +799,30 @@ export default function Home() {
   );
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // import React, { useState, useEffect } from "react";
 // import MovieCard from "../components/MovieCard";
 // import { auth } from "../firebase/firebase";
 
-// const API_KEY = "a92f198";
+// const API_KEY = "4f747ea5f352272eb2979809dccffde6"; // TMDB API
 
 // const categories = [
 //   { title: "Action Movies", query: "action", icon: "💥", gradient: "linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)" },
@@ -771,6 +841,7 @@ export default function Home() {
 //   const [loading, setLoading] = useState(true);
 //   const [searchLoading, setSearchLoading] = useState(false);
 //   const [user, setUser] = useState(null);
+//   const [expandedCategories, setExpandedCategories] = useState({});
 
 //   useEffect(() => {
 //     setUser(auth.currentUser);
@@ -781,14 +852,14 @@ export default function Home() {
 //       setSearchResults([]);
 //       return;
 //     }
-    
+
 //     setSearchLoading(true);
 //     try {
-//       const url = `https://www.omdbapi.com/?s=${query}&apikey=${API_KEY}`;
+//       const url = `https://api.themoviedb.org/3/search/movie?api_key=${API_KEY}&query=${encodeURIComponent(query)}`;
 //       const res = await fetch(url);
 //       const data = await res.json();
-//       if (data.Search) {
-//         setSearchResults(data.Search);
+//       if (data.results) {
+//         setSearchResults(data.results);
 //       } else {
 //         setSearchResults([]);
 //       }
@@ -804,16 +875,26 @@ export default function Home() {
 //     const fetchCategoryMovies = async () => {
 //       setLoading(true);
 //       try {
+//         const genreMap = {
+//           action: 28,
+//           comedy: 35,
+//           adventure: 12,
+//           kids: 16,
+//           thriller: 53,
+//           drama: 18,
+//           "sci-fi": 878,
+//         };
+
 //         const promises = categories.map(async (cat) => {
-//           const url = `https://www.omdbapi.com/?s=${cat.query}&apikey=${API_KEY}`;
+//           const url = `https://api.themoviedb.org/3/discover/movie?api_key=${API_KEY}&with_genres=${genreMap[cat.query]}`;
 //           const res = await fetch(url);
 //           const data = await res.json();
-//           return { category: cat.title, movies: data.Search || [] };
+//           return { category: cat.title, movies: data.results || [] };
 //         });
 
 //         const results = await Promise.all(promises);
 //         const categoryData = {};
-//         results.forEach(result => {
+//         results.forEach((result) => {
 //           categoryData[result.category] = result.movies;
 //         });
 //         setCategoryMovies(categoryData);
@@ -828,9 +909,19 @@ export default function Home() {
 //   }, []);
 
 //   const handleKeyPress = (e) => {
-//     if (e.key === 'Enter') {
-//       searchMovies();
-//     }
+//     if (e.key === "Enter") searchMovies();
+//   };
+
+//   const clearSearch = () => {
+//     setQuery("");
+//     setSearchResults([]);
+//   };
+
+//   const toggleCategory = (title) => {
+//     setExpandedCategories((prev) => ({
+//       ...prev,
+//       [title]: !prev[title],
+//     }));
 //   };
 
 //   return (
@@ -840,19 +931,24 @@ export default function Home() {
 //         <div className="hero-content">
 //           <div className="hero-text">
 //             <h1 className="hero-title">
-//               Welcome back, <span className="user-name">{user?.displayName || user?.email?.split('@')[0] || 'Movie Lover'}</span>! 👋
+//               Welcome back,{" "}
+//               <span className="user-name">
+//                 {user?.displayName || user?.email?.split("@")[0] || "Movie Lover"}
+//               </span>
+//               ! 👋
 //             </h1>
 //             <p className="hero-subtitle">
 //               Discover your next favorite movie from thousands of titles
 //             </p>
 //           </div>
-          
+
+//           {/* Search Bar */}
 //           <div className="search-section">
 //             <div className="search-container">
 //               <div className="search-input-wrapper">
 //                 <svg className="search-icon" width="24" height="24" viewBox="0 0 24 24" fill="none">
-//                   <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2"/>
-//                   <path d="m21 21-4.35-4.35" stroke="currentColor" strokeWidth="2"/>
+//                   <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2" />
+//                   <path d="m21 21-4.35-4.35" stroke="currentColor" strokeWidth="2" />
 //                 </svg>
 //                 <input
 //                   type="text"
@@ -862,71 +958,50 @@ export default function Home() {
 //                   placeholder="Search for movies, actors, directors..."
 //                   className="search-input"
 //                 />
-//                 <button 
-//                   className="search-button"
-//                   onClick={searchMovies}
-//                   disabled={searchLoading}
-//                 >
-//                   {searchLoading ? (
-//                     <div className="search-spinner"></div>
-//                   ) : (
-//                     'Search'
-//                   )}
+//                 {query && <button className="clear-button" onClick={clearSearch}>✖</button>}
+//                 <button className="search-button" onClick={searchMovies} disabled={searchLoading}>
+//                   {searchLoading ? <div className="search-spinner"></div> : "Search"}
 //                 </button>
 //               </div>
 //             </div>
 //           </div>
 //         </div>
-//         <div className="hero-decoration">
-//           <div className="floating-icon">🎬</div>
-//           <div className="floating-icon delay-1">🍿</div>
-//           <div className="floating-icon delay-2">🎭</div>
-//           <div className="floating-icon delay-3">📽️</div>
-//         </div>
 //       </div>
 
-//       <div className="content-container">
+//       {/* Content Section */}
+//       <div className="content-container" style={{ marginTop: "40px" }}>
 //         {/* Search Results */}
 //         {query && (
 //           <section className="search-results-section">
-//             <div className="section-header"> 
+//             <div className="section-header">
 //               <h2 className="section-title">
-//                 {searchLoading ? 'Searching...' : `Search Results for "${query}"`}
-//                 {searchResults.length > 0 && (
-//                   <span className="results-count">({searchResults.length} found)</span>
-//                 )}
+//                 {searchLoading ? "Searching..." : `Search Results for "${query}"`}
 //               </h2>
 //             </div>
-            
 //             {searchLoading ? (
 //               <div className="loading-grid">
 //                 {[...Array(8)].map((_, i) => (
 //                   <div key={i} className="loading-card">
 //                     <div className="loading-poster"></div>
-//                     <div className="loading-content">
-//                       <div className="loading-title"></div>
-//                       <div className="loading-year"></div>
-//                     </div>
 //                   </div>
 //                 ))}
 //               </div>
 //             ) : searchResults.length > 0 ? (
 //               <div className="movies-grid">
 //                 {searchResults.map((movie) => (
-//                   <MovieCard key={movie.imdbID} movie={movie} />
+//                   <MovieCard key={movie.id} movie={movie} />
 //                 ))}
 //               </div>
-//             ) : query && (
+//             ) : (
 //               <div className="no-results">
 //                 <div className="no-results-icon">🔍</div>
 //                 <h3>No movies found</h3>
-//                 <p>Try searching with different keywords</p>
 //               </div>
 //             )}
 //           </section>
 //         )}
 
-//         {/* Category Sections */}
+//         {/* Categories */}
 //         {loading ? (
 //           <div className="categories-loading">
 //             <div className="loading-spinner-large"></div>
@@ -934,35 +1009,58 @@ export default function Home() {
 //           </div>
 //         ) : (
 //           <div className="categories-container">
-//             {categories.map((cat, index) => (
-//               <section key={cat.title} className="category-section">
-//                 <div className="category-header" style={{ background: cat.gradient }}>
-//                   <div className="category-icon">{cat.icon}</div>
-//                   <h3 className="category-title">{cat.title}</h3>
-//                   <div className="category-count">
-//                     {categoryMovies[cat.title]?.length || 0} movies
+//             {categories.map((cat) => {
+//               const isExpanded = expandedCategories[cat.title];
+//               const movies = categoryMovies[cat.title] || [];
+//               const moviesToShow = isExpanded ? movies : movies.slice(0, 10);
+//               return (
+//                 <section key={cat.title} className="category-section">
+//                   <div className="category-header" style={{ background: cat.gradient }}>
+//                     <div className="category-icon">{cat.icon}</div>
+//                     <h3 className="category-title">{cat.title}</h3>
 //                   </div>
-//                 </div>
-                
-//                 <div className="category-content">
-//                   {categoryMovies[cat.title] && categoryMovies[cat.title].length > 0 ? (
-//                     <div className="horizontal-scroll">
-//                       <div className="movies-row">
-//                         {categoryMovies[cat.title].slice(0, 10).map(movie => (
-//                           <div key={movie.imdbID} className="movie-item">
-//                             <MovieCard movie={movie} />
+//                   <div className="category-content">
+//                     {movies.length > 0 ? (
+//                       <>
+//                         {isExpanded ? (
+//                           // Grid view for expanded categories (4 movies per row)
+//                           <div className="expanded-movies-grid">
+//                             {moviesToShow.map((movie) => (
+//                               <div key={movie.id} className="expanded-movie-item">
+//                                 <MovieCard movie={movie} />
+//                               </div>
+//                             ))}
 //                           </div>
-//                         ))}
+//                         ) : (
+//                           // Horizontal scroll for collapsed categories
+//                           <div className="horizontal-scroll">
+//                             <div className="movies-row">
+//                               {moviesToShow.map((movie) => (
+//                                 <div key={movie.id} className="movie-item">
+//                                   <MovieCard movie={movie} />
+//                                 </div>
+//                               ))}
+//                             </div>
+//                           </div>
+//                         )}
+//                         {movies.length > 10 && (
+//                           <button
+//                             className="view-all-button"
+//                             onClick={() => toggleCategory(cat.title)}
+//                           >
+//                             {isExpanded ? "Show Less" : "View All"}
+//                           </button>
+//                         )}
+//                       </>
+//                     ) : (
+//                       <div className="category-empty">
+//                         <p>No movies found for this category</p>
 //                       </div>
-//                     </div>
-//                   ) : (
-//                     <div className="category-empty">
-//                       <p>No movies found for this category</p>
-//                     </div>
-//                   )}
-//                 </div>
-//               </section>
-//             ))}
+//                     )}
+//                   </div>
+//                 </section>
+//               );
+//             })}
 //           </div>
 //         )}
 //       </div>
@@ -1067,6 +1165,26 @@ export default function Home() {
 //           color: rgba(255, 255, 255, 0.7);
 //         }
 
+//         .clear-button {
+//           background: rgba(255, 255, 255, 0.2);
+//           border: none;
+//           color: white;
+//           padding: 0.5rem;
+//           margin-right: 0.5rem;
+//           border-radius: 50%;
+//           width: 30px;
+//           height: 30px;
+//           display: flex;
+//           align-items: center;
+//           justify-content: center;
+//           cursor: pointer;
+//           transition: all 0.3s ease;
+//         }
+
+//         .clear-button:hover {
+//           background: rgba(255, 255, 255, 0.3);
+//         }
+
 //         .search-button {
 //           background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
 //           border: none;
@@ -1101,32 +1219,6 @@ export default function Home() {
 //           animation: spin 1s linear infinite;
 //         }
 
-//         .hero-decoration {
-//           position: absolute;
-//           top: 0;
-//           left: 0;
-//           right: 0;
-//           bottom: 0;
-//           pointer-events: none;
-//           overflow: hidden;
-//         }
-
-//         .floating-icon {
-//           position: absolute;
-//           font-size: 3rem;
-//           opacity: 0.1;
-//           animation: float 6s ease-in-out infinite;
-//         }
-
-//         .floating-icon:nth-child(1) { top: 20%; left: 10%; }
-//         .floating-icon:nth-child(2) { top: 60%; right: 15%; }
-//         .floating-icon:nth-child(3) { bottom: 30%; left: 20%; }
-//         .floating-icon:nth-child(4) { top: 40%; right: 25%; }
-
-//         .floating-icon.delay-1 { animation-delay: -2s; }
-//         .floating-icon.delay-2 { animation-delay: -4s; }
-//         .floating-icon.delay-3 { animation-delay: -1s; }
-
 //         .content-container {
 //           max-width: 1200px;
 //           margin: 0 auto;
@@ -1154,19 +1246,45 @@ export default function Home() {
 //           gap: 1rem;
 //         }
 
-//         .results-count {
+//         .view-all-button {
+//           margin: 1.5rem auto;
+//           display: block;
+//           padding: 0.8rem 2rem;
+//           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+//           color: white;
+//           border: none;
+//           border-radius: 50px;
 //           font-size: 1rem;
-//           font-weight: 400;
-//           color: #7f8c8d;
-//           background: #ecf0f1;
-//           padding: 0.25rem 0.75rem;
-//           border-radius: 20px;
+//           font-weight: 600;
+//           cursor: pointer;
+//           transition: all 0.3s ease;
+//         }
+
+//         .view-all-button:hover {
+//           transform: translateY(-2px);
+//           box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
 //         }
 
 //         .movies-grid {
 //           display: grid;
 //           grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
 //           gap: 2rem;
+//         }
+
+//         /* CRITICAL: Grid layout for expanded View All */
+//         .expanded-movies-grid {
+//           display: grid;
+//           grid-template-columns: repeat(4, 1fr);
+//           gap: 2rem;
+//           padding: 2rem;
+//           justify-items: center;
+//         }
+
+//         .expanded-movie-item {
+//           width: 100%;
+//           max-width: 250px;
+//           display: flex;
+//           justify-content: center;
 //         }
 
 //         .loading-grid {
@@ -1187,28 +1305,6 @@ export default function Home() {
 //           background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
 //           background-size: 200% 100%;
 //           animation: shimmer 1.5s infinite;
-//         }
-
-//         .loading-content {
-//           padding: 1rem;
-//         }
-
-//         .loading-title {
-//           height: 20px;
-//           background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-//           background-size: 200% 100%;
-//           animation: shimmer 1.5s infinite;
-//           margin-bottom: 0.5rem;
-//           border-radius: 4px;
-//         }
-
-//         .loading-year {
-//           height: 16px;
-//           width: 60%;
-//           background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-//           background-size: 200% 100%;
-//           animation: shimmer 1.5s infinite;
-//           border-radius: 4px;
 //         }
 
 //         .no-results {
@@ -1295,15 +1391,6 @@ export default function Home() {
 //           margin: 0;
 //         }
 
-//         .category-count {
-//           background: rgba(255, 255, 255, 0.2);
-//           padding: 0.5rem 1rem;
-//           border-radius: 25px;
-//           font-size: 0.9rem;
-//           font-weight: 500;
-//           backdrop-filter: blur(10px);
-//         }
-
 //         .category-content {
 //           padding: 0;
 //         }
@@ -1361,11 +1448,6 @@ export default function Home() {
 //           50% { background-position: 100% 50%; }
 //         }
 
-//         @keyframes float {
-//           0%, 100% { transform: translateY(0px) rotate(0deg); }
-//           50% { transform: translateY(-20px) rotate(180deg); }
-//         }
-
 //         @keyframes spin {
 //           0% { transform: rotate(0deg); }
 //           100% { transform: rotate(360deg); }
@@ -1379,6 +1461,13 @@ export default function Home() {
 //         @keyframes shimmer {
 //           0% { background-position: -200% 0; }
 //           100% { background-position: 200% 0; }
+//         }
+
+//         /* Responsive breakpoints */
+//         @media (max-width: 1200px) {
+//           .expanded-movies-grid {
+//             grid-template-columns: repeat(3, 1fr);
+//           }
 //         }
 
 //         @media (max-width: 768px) {
@@ -1413,6 +1502,12 @@ export default function Home() {
 //           .movies-grid {
 //             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
 //             gap: 1rem;
+//           }
+
+//           .expanded-movies-grid {
+//             grid-template-columns: repeat(2, 1fr);
+//             gap: 1rem;
+//             padding: 1rem;
 //           }
 
 //           .category-header {
@@ -1458,65 +1553,16 @@ export default function Home() {
 //             grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
 //           }
 
+//           .expanded-movies-grid {
+//             grid-template-columns: 1fr;
+//             padding: 1rem;
+//           }
+
 //           .movie-item {
 //             flex: 0 0 180px;
 //           }
 //         }
 //       `}</style>
-//     </div>
-//   );
-// }
-
-
-
-
-
-
-
-
-
-
-// import React, { useState } from "react";
-// import MovieList from "../components/MovieList";
-// import SearchBar from "../components/SearchBar";
-
-// const API_KEY = "a92f198"; // OMDB API Key
-
-// export default function Home() {
-//   const [query, setQuery] = useState("");
-//   const [movies, setMovies] = useState([]);
-
-//   const searchMovies = async () => {
-//     if (!query.trim()) return;
-//     const url = `https://www.omdbapi.com/?s=${query}&apikey=${API_KEY}`;
-//     const res = await fetch(url);
-//     const data = await res.json();
-//     if (data.Search) {
-//       setMovies(data.Search);
-//     } else {
-//       setMovies([]);
-//     }
-//   };
-
-//   const handleSubmit = (e) => {
-//     e.preventDefault();
-//     searchMovies();
-//   };
-
-//   return (
-//     <div className="container mt-4">
-//       <h2 className="text-center mb-4">Search for Movies</h2>
-//       <form onSubmit={handleSubmit} className="d-flex mb-4 justify-content-center">
-//         <input
-//           type="text"
-//           value={query}
-//           onChange={(e) => setQuery(e.target.value)}
-//           placeholder="Enter movie name..."
-//           className="form-control w-50 me-2"
-//         />
-//         <button type="submit" className="btn btn-primary">Search</button>
-//       </form>
-//       <MovieList movies={movies} />
 //     </div>
 //   );
 // }

@@ -22,7 +22,7 @@ export default function Header({ user, onSignOut }) {
           {/* Logo */}
           <Link className="nav-logo" to="/" onClick={closeMenu}>
             <div className="logo-icon">🎬</div>
-            <span className="logo-text">CinemaHub</span>
+            <span className="logo-text">Movie Hub</span>
           </Link>
 
           {/* Desktop Navigation */}
